@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>プライオリティ・全作業マスターゲーム</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #f0f4f8; margin: 0; padding: 14px; color: #333; }
+    h1 { text-align: center; font-size: 1.1rem; color: #1e3c72; margin: 8px 0 10px; font-weight: bold; }
+    
+    .card { background: #fff; border-radius: 12px; padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px; }
+    .label { font-size: 0.8rem; font-weight: bold; color: #666; margin-bottom: 6px; }
+    
+    /* モード切替タブ */
+    .mode-tab { display: flex; gap: 8px; margin-bottom: 12px; }
+    .tab-btn { flex: 1; padding: 10px; border: none; background: #cbd5e1; color: #475569; font-weight: bold; border-radius: 8px; cursor: pointer; text-align: center; font-size: 0.9rem; }
+    .tab-btn.active { background: #1e3c72; color: #fff; }
+
+    /* ポジション切替ボタン */
+    .pos-selector { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+    .pos-btn { flex: 1; min-width: 50px; padding: 8px 0; border: 2px solid #2a5298; background: #fff; color: #2a5298; border-radius: 8px; font-weight: bold; cursor: pointer; text-align: center; font-size: 0.85rem; -webkit-tap-highlight-color: transparent; }
+    .pos-btn.active { background: #2a5298; color: #fff; }
+
+    /* テーブル表示スタイル */
+    .table-container { overflow-x: auto; margin-top: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: left; }
+    th { background: #2a5298; color: #fff; padding: 8px; border: 1px solid #cbd5e1; white-space: nowrap; }
+    td { padding: 8px; border: 1px solid #cbd5e1; line-height: 1.3; }
+    tr:nth-child(even) { background-color: #f8fafc; }
+    .badge-core { background: #ff9800; color: #fff; padding: 2px 4px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
+
+    /* クイズカード */
+    .question-box { background: #eef3f8; border-left: 4px solid #2a5298; padding: 12px; border-radius: 6px; font-size: 0.95rem; font-weight: bold; color: #1e3c72; margin-top: 4px; text-align: center; line-height: 1.4; }
+
+    /* 選択肢ボタン */
+    .type-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; }
+    .type-btn { padding: 12px 6px; border: 2px solid #ccc; background: #fafafa; border-radius: 8px; font-size: 0.85rem; font-weight: bold; cursor: pointer; text-align: center; -webkit-tap-highlight-color: transparent; transition: all 0.15s; }
+    .type-btn.selected { border-color: #e67e22; background: #fff8f0; color: #d35400; font-weight: bold; }
+    .type-btn-core { grid-column: span 2; background: #fff3e0; border-color: #ff9800; color: #e65100; font-size: 0.95rem; }
+
+    /* アクションボタン */
+    .btn-submit { width: 100%; padding: 13px; background: #27ae60; color: #fff; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: bold; margin-top: 12px; cursor: pointer; box-shadow: 0 3px 6px rgba(39,174,96,0.3); }
+    .btn-next { width: 100%; padding: 10px; background: #7f8c8d; color: #fff; border: none; border-radius: 8px; font-size: 0.85rem; margin-top: 8px; cursor: pointer; }
+    .btn-start-game { width: 100%; padding: 12px; background: #27ae60; color: #fff; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: bold; margin-top: 12px; cursor: pointer; }
+
+    /* 結果表示エリア */
+    .result-box { display: none; margin-top: 12px; padding: 12px; border-radius: 8px; font-size: 0.85rem; line-height: 1.5; }
+    .result-box.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .result-box.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+  </style>
+</head>
+<body>
+
+  <h1>⚡ プライオリティ全作業マスター</h1>
+
+  <!-- タブ切替 -->
+  <div class="mode-tab">
+    <button class="tab-btn active" id="tabTable" onclick="switchView('table')">📋 一覧表で確認</button>
+    <button class="tab-btn" id="tabGame" onclick="switchView('game')">🎮 ゲーム挑戦</button>
+  </div>
+
+  <!-- 【モード1】一覧表画面 -->
+  <div id="tableView" class="card">
+    <div class="label">ポジション別 優先順位 ＆ 守備範囲一覧</div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>POS</th>
+            <th>コア作業 (最優先)</th>
+            <th>メイン作業順位</th>
+            <th>守備範囲</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <button class="btn-start-game" onclick="switchView('game')">覚えたのでゲームを始める！ ➔</button>
+  </div>
+
+  <!-- 【モード2】ゲーム画面 -->
+  <div id="gameView" style="display: none;">
+    <!-- ポジション選択 -->
+    <div class="card">
+      <div class="label">1. ポジションを選択</div>
+      <div class="pos-selector">
+        <button class="pos-btn active" onclick="selectPos('W')">W</button>
+        <button class="pos-btn" onclick="selectPos('S')">S</button>
+        <button class="pos-btn" onclick="selectPos('FT')">FT</button>
+        <button class="pos-btn" onclick="selectPos('C')">C</button>
+        <button class="pos-btn" onclick="selectPos('D')">D</button>
+        <button class="pos-btn" onclick="selectPos('KT')">KT</button>
+        <button class="pos-btn" onclick="selectPos('H')">H</button>
+        <button class="pos-btn" onclick="selectPos('K')">K</button>
+      </div>
+    </div>
+
+    <!-- クイズカード -->
+    <div class="card">
+      <div class="label" id="questionNumber">Q. 作業の種類・優先順位を答えよう！</div>
+      <div class="question-box" id="questionText">作業名を読み込み中...</div>
+
+      <!-- 選択肢コンテナ -->
+      <div class="type-options" id="optionsContainer"></div>
+
+      <button class="btn-submit" onclick="checkAnswer()">判定する！</button>
+      <button class="btn-next" onclick="nextQuestion()">次の問題 ➔</button>
+
+      <div id="resultBox" class="result-box"></div>
+    </div>
+  </div>
+
+  <script>
+    const maxMainCount = {
+      W: 2, S: 4, FT: 3, C: 2, D: 3, KT: 4, H: 3, K: 2
+    };
+
+    // ご指定の守備範囲リスト
+    const subCoverageList = {
+      W: "サービング、オーダーなど",
+      S: "ウェルカム、お客様対応など",
+      FT: "ナビゲーション、キャッシャーなど",
+      C: "オーダーなど",
+      D: "ディシュウォッシュなど",
+      KT: "KKイン、ヒートなど（フロアサポート業務含む）",
+      H: "ウォッシュ、ドリンクなど（キッチン全般サポート）",
+      K: "KKイン、ヒート、サービングなど（キッチン内業務サポート）"
+    };
+
+    const allQuestions = {
+      W: [
+        { task: "W の「ミドル・ファイナル」", ans: "★ コア作業", detail: "Wの「ミドル・ファイナル」は★コア作業（最優先）です！" },
+        { task: "W の「ウェルカム」", ans: "メイン 優先順位①", detail: "Wのメイン作業の最優先①は「ウェルカム」です！" },
+        { task: "W の「セットアップ / ナビゲーション」", ans: "メイン 優先順位②", detail: "Wのメイン作業②は「セットアップ」と「ナビゲーション」です！" }
+      ],
+      S: [
+        { task: "S の「ミドル・ファイナル」", ans: "★ コア作業", detail: "Sの「ミドル・ファイナル」は★コア作業（最優先）です！" },
+        { task: "S の「セットアップ」", ans: "メイン 優先順位①", detail: "Sのメイン作業①は「セットアップ」です！" },
+        { task: "S の「ナビゲーション」", ans: "メイン 優先順位②", detail: "Sのメイン作業②は「ナビゲーション」です！" },
+        { task: "S の「オーダー」", ans: "メイン 優先順位③", detail: "Sのメイン作業③は「オーダー」です！" },
+        { task: "S の「サービング」", ans: "メイン 優先順位④", detail: "Sのメイン作業④は「サービング」です！" }
+      ],
+      FT: [
+        { task: "FT の「ミドル・ファイナル」", ans: "★ コア作業", detail: "FTは「ミドル・ファイナル」が★コア作業です！" },
+        { task: "FT の「サービング」", ans: "★ コア作業", detail: "FTは「サービング」も★コア作業です！" },
+        { task: "FT の「お客様対応」", ans: "メイン 優先順位①", detail: "FTのメイン作業①は「お客様対応」です！" },
+        { task: "FT の「オーダー」", ans: "メイン 優先順位②", detail: "FTのメイン作業②は「オーダー」です！" },
+        { task: "FT の「セットアップ」", ans: "メイン 優先順位③", detail: "FTのメイン作業③は「セットアップ」です！" }
+      ],
+      C: [
+        { task: "C の「ミドル・ファイナル」", ans: "★ コア作業", detail: "Cも「ミドル・ファイナル」が★コア作業です！" },
+        { task: "C の「サービング」", ans: "★ コア作業", detail: "Cも「サービング」が★コア作業です！" },
+        { task: "C の「キャッシャー」", ans: "メイン 優先順位①", detail: "Cのメイン作業①は「キャッシャー」です！" },
+        { task: "C の「ドリンク」", ans: "メイン 優先順位②", detail: "Cのメイン作業②は「ドリンク」です！" }
+      ],
+      D: [
+        { task: "D の「サービング」", ans: "★ コア作業", detail: "Dは「サービング」が★コア作業です！" },
+        { task: "D の「ミドル・ファイナル」", ans: "★ コア作業", detail: "Dは「ミドル・ファイナル」も★コア作業です！" },
+        { task: "D の「ドリンク」", ans: "メイン 優先順位①", detail: "Dのメイン作業①は「ドリンク」です！" },
+        { task: "D の「ベリフィ」", ans: "メイン 優先順位②", detail: "Dのメイン作業②は「ベリフィ」です！" },
+        { task: "D の「キャッシャー」", ans: "メイン 優先順位③", detail: "Dのメイン作業③は「キャッシャー」です！" }
+      ],
+      KT: [
+        { task: "KT の「KKアウト」", ans: "★ コア作業", detail: "KTは「KKアウト」が★コア作業です！" },
+        { task: "KT の「デコレ」", ans: "★ コア作業", detail: "KTは「デコレ」も★コア作業です！" },
+        { task: "KT の「サービング」", ans: "メイン 優先順位①", detail: "KTのメイン作業①は「サービング」です！" },
+        { task: "KT の「ウォッシュ」", ans: "メイン 優先順位②", detail: "KTのメイン作業②は「ウォッシュ」です！" },
+        { task: "KT の「サラダ」", ans: "メイン 優先順位③", detail: "KTのメイン作業③は「サラダ」です！" },
+        { task: "KT の「ドリンク」", ans: "メイン 優先順位④", detail: "KTのメイン作業④は「ドリンク」です！" }
+      ],
+      H: [
+        { task: "H の「KKアウト」", ans: "★ コア作業", detail: "Hは「KKアウト」が★コア作業です！" },
+        { task: "H の「デコレ」", ans: "★ コア作業", detail: "Hは「デコレ」も★コア作業です！" },
+        { task: "H の「サラダ」", ans: "メイン 優先順位①", detail: "Hのメイン作業①は「サラダ」です！" },
+        { task: "H の「ヒート」", ans: "メイン 優先順位②", detail: "Hのメイン作業②は「ヒート」です！" },
+        { task: "H の「サービング」", ans: "メイン 優先順位③", detail: "Hのメイン作業③は「サービング」です！" }
+      ],
+      K: [
+        { task: "K の「KKアウト」", ans: "★ コア作業", detail: "Kは「KKアウト」が★コア作業です！" },
+        { task: "K の「デコレ」", ans: "★ コア作業", detail: "Kは「デコレ」も★コア作業です！" },
+        { task: "K の「KKイン」", ans: "メイン 優先順位①", detail: "Kのメイン作業①は「KKイン」です！" },
+        { task: "K の「ウォッシュ」", ans: "メイン 優先順位②", detail: "Kのメイン作業②は「ウォッシュ」です！" }
+      ]
+    };
+
+    let currentPos = 'W';
+    let currentQuestions = [];
+    let qIndex = 0;
+    let selectedOption = null;
+
+    // テーブルの動的生成
+    function renderTable() {
+      const tbody = document.getElementById('tableBody');
+      let html = '';
+      
+      const posOrder = ['W', 'S', 'FT', 'C', 'D', 'KT', 'H', 'K'];
+      
+      posOrder.forEach(pos => {
+        const questions = allQuestions[pos];
+        const coreTasks = questions.filter(q => q.ans === '★ コア作業').map(q => q.task.replace(`${pos} の「`, '').replace('」', '')).join(', ');
+        const mainTasks = questions.filter(q => q.ans !== '★ コア作業').map(q => `${q.ans.replace('メイン 優先順位', '')}.${q.task.replace(`${pos} の「`, '').replace('」', '')}`).join('<br>');
+        
+        html += `
+          <tr>
+            <td><strong>${pos}</strong></td>
+            <td><span class="badge-core">${coreTasks}</span></td>
+            <td>${mainTasks}</td>
+            <td>${subCoverageList[pos]}</td>
+          </tr>
+        `;
+      });
+      
+      tbody.innerHTML = html;
+    }
+
+    // 表示切り替え（一覧表 ⇄ ゲーム）
+    function switchView(view) {
+      document.getElementById('tableView').style.display = view === 'table' ? 'block' : 'none';
+      document.getElementById('gameView').style.display = view === 'game' ? 'block' : 'none';
+      document.getElementById('tabTable').className = view === 'table' ? 'tab-btn active' : 'tab-btn';
+      document.getElementById('tabGame').className = view === 'game' ? 'tab-btn active' : 'tab-btn';
+    }
+
+    function shuffleArray(array) {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+
+    function renderOptions() {
+      const container = document.getElementById('optionsContainer');
+      const numToKanji = { 1: '①', 2: '②', 3: '③', 4: '④' };
+      const maxCount = maxMainCount[currentPos] || 4;
+
+      let html = `<button class="type-btn type-btn-core" id="btnCore" onclick="selectOption('★ コア作業')">★ コア作業（最優先）</button>`;
+      
+      for (let i = 1; i <= maxCount; i++) {
+        const labelText = `メイン 優先順位${numToKanji[i]}`;
+        const btnText = `メイン ${numToKanji[i]}`;
+        html += `<button class="type-btn" id="btnMain${i}" onclick="selectOption('${labelText}')">${btnText}</button>`;
+      }
+
+      container.innerHTML = html;
+    }
+
+    function initPos(pos) {
+      currentPos = pos;
+      qIndex = 0;
+      currentQuestions = shuffleArray(allQuestions[pos]);
+      renderOptions();
+    }
+
+    function loadQuestion() {
+      selectedOption = null;
+      document.querySelectorAll('.type-btn').forEach(btn => btn.classList.remove('selected'));
+      document.getElementById('resultBox').style.display = 'none';
+
+      const q = currentQuestions[qIndex];
+      
+      document.getElementById('questionNumber').innerText = `【${currentPos} ポジション】 第 ${qIndex + 1} 問 / 全 ${currentQuestions.length} 問`;
+      document.getElementById('questionText').innerText = `「 ${q.task} 」 の優先度は？`;
+    }
+
+    function selectPos(pos) {
+      initPos(pos);
+      document.querySelectorAll('.pos-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.innerText === pos);
+      });
+      loadQuestion();
+    }
+
+    function selectOption(opt) {
+      selectedOption = opt;
+      document.querySelectorAll('.type-btn').forEach(btn => {
+        btn.classList.remove('selected');
+        if (btn.innerText.includes(opt.replace('メイン 優先順位', 'メイン '))) {
+          btn.classList.add('selected');
+        } else if (opt === '★ コア作業' && btn.id === 'btnCore') {
+          btn.classList.add('selected');
+        }
+      });
+    }
+
+    function checkAnswer() {
+      if (!selectedOption) {
+        alert('いずれかの選択肢をタップしてください！');
+        return;
+      }
+
+      const q = currentQuestions[qIndex];
+      const resultBox = document.getElementById('resultBox');
+      resultBox.style.display = 'block';
+
+      const subList = subCoverageList[currentPos];
+      const tipText = `<br><span style='font-size:0.75rem; color:#444; background:#e2e8f0; padding:3px 6px; border-radius:4px; display:inline-block; margin-top:6px;'>🛡️ <strong>${currentPos}の守備範囲:</strong> ${subList}</span>`;
+
+      if (selectedOption === q.ans) {
+        resultBox.className = 'result-box success';
+        resultBox.innerHTML = `<strong>🎉 正解！</strong><br>${q.detail}${tipText}`;
+      } else {
+        resultBox.className = 'result-box error';
+        resultBox.innerHTML = `<strong>🤔 惜しい！</strong> 正解は「<strong>${q.ans}</strong>」です。<br>${q.detail}${tipText}`;
+      }
+    }
+
+    function nextQuestion() {
+      qIndex++;
+      if (qIndex >= currentQuestions.length) {
+        currentQuestions = shuffleArray(allQuestions[currentPos]);
+        qIndex = 0;
+      }
+      loadQuestion();
+    }
+
+    // 初期化
+    renderTable();
+    initPos('W');
+    loadQuestion();
+  </script>
+</body>
+</html>
